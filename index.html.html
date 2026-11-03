@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>スキルシミュレーター</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f8;color:#17202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{max-width:620px;margin:auto;padding:16px 14px 90px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+h1{font-size:21px;margin:0}.sub{font-size:12px;color:#6b7280;margin-top:3px}
+.switch{display:flex;background:#e4e7ec;border-radius:12px;padding:3px}
+.switch button{border:0;background:transparent;padding:8px 17px;border-radius:9px;font-weight:700}
+.switch .on{background:#fff;box-shadow:0 1px 4px #0002}
+.card{background:#fff;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 10px #0000000d}
+.cardhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+h2{font-size:18px;margin:0}
+.pill{background:#eef2ff;padding:5px 9px;border-radius:99px;font-size:12px}
+.skill{display:grid;grid-template-columns:1fr 70px;gap:10px;align-items:center;margin:10px 0}
+.searchwrap{position:relative;min-width:0}
+.search{display:block;width:100%;min-height:52px;padding:12px;border:1px solid #d5d9df;border-radius:10px;background:#fff;color:#17202a;-webkit-text-fill-color:#17202a;caret-color:#17202a;font-size:16px;line-height:1.4;opacity:1}
+.suggestions{display:none;position:absolute;z-index:9999;left:0;right:0;top:calc(100% + 4px);max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid #d5d9df;border-radius:10px;box-shadow:0 6px 18px #0002}
+.suggestions.show{display:block}
+.suggestion{display:block;width:100%;padding:11px 12px;border:0;border-bottom:1px solid #edf0f3;background:#fff;text-align:left;font-size:14px}
+.suggestion:last-child{border-bottom:0}
+.suggestion:active{background:#eef2ff}
+.noresult{padding:12px;color:#6b7280;font-size:13px}
+.score{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.total{background:#17202a;color:#fff;border-radius:13px;padding:14px;margin-top:14px;display:flex;justify-content:space-between;align-items:center}
+.total small{color:#cbd5e1}.total b{font-size:25px}
+.note{font-size:12px;color:#6b7280;line-height:1.5;margin-top:12px}
+.reset{width:100%;margin-top:10px;padding:10px;border:1px solid #d5d9df;background:#fff;border-radius:10px;font-weight:600}
+.sticky{position:fixed;left:0;right:0;bottom:0;background:#ffffffee;backdrop-filter:blur(10px);border-top:1px solid #dfe3e8;padding:10px max(14px,calc((100vw - 620px)/2 + 14px));display:flex;justify-content:space-between;align-items:center}
+.sticky small{color:#6b7280}.sticky b{font-size:23px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div><h1>スキルシミュレーター</h1><div class="sub">スキルを選択して評価値を確認</div></div>
+    <div class="switch">
+      <button id="bat" class="on">打者</button>
+      <button id="pit">投手</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cardhead">
+      <h2>スキル</h2>
+      <span class="pill">最大4個</span>
+    </div>
+    <div id="skills">
+      <div class="skill"><div class="searchwrap"><input class="search" id="search0" type="text" autocomplete="off" placeholder="スキル名を入力（例：エース）"></div><div class="score" id="score0">—</div></div>
+      <div class="skill"><div class="searchwrap"><input class="search" id="search1" type="text" autocomplete="off" placeholder="スキル名を入力（例：エース）"></div><div class="score" id="score1">—</div></div>
+      <div class="skill"><div class="searchwrap"><input class="search" id="search2" type="text" autocomplete="off" placeholder="スキル名を入力（例：エース）"></div><div class="score" id="score2">—</div></div>
+      <div class="skill"><div class="searchwrap"><input class="search" id="search3" type="text" autocomplete="off" placeholder="スキル名を入力（例：エース）"></div><div class="score" id="score3">—</div></div>
+    </div>
+    <button class="reset" onclick="resetSkills()">すべてクリア</button>
+    <div class="note">
+      ひらがな・カタカナのどちらでも、スキル名または読みの先頭から検索できます。漢字スキルも登録された読みから検索できます。<br>
+      同じスキルを複数選択することはできません。評価点は元の選手評価表と同じです。
+    </div>
+  </div>
+
+  <div class="total">
+    <div><small>スキル評価合計</small></div>
+    <b id="total">0</b>
+  </div>
+</div>
+
+<div class="sticky"><small>現在のスキル評価</small><b id="sticky">0</b></div>
+
+<script>
+const batSkillMaster=[{"name": "なし", "score": 0.0}, {"name": "偉大な存在", "score": 112.0}, {"name": "エーススペシャリスト", "score": 109.25}, {"name": "チッパー", "score": 94.25}, {"name": "チッパー(非両打)", "score": 67.25}, {"name": "リトル・ビッグマン", "score": 93.5}, {"name": "ビッグハート", "score": 90.25}, {"name": "適応型打者", "score": 89.5}, {"name": "適応型打者(非両打)", "score": 80.25}, {"name": "打者ケミストリー", "score": 82.5}, {"name": "アイアンホース", "score": 74.75}, {"name": "メンタルゲーム", "score": 71.9}, {"name": "強靭な肩", "score": 71.0}, {"name": "スピード＆コンタクト", "score": 70.5}, {"name": "打者専門化", "score": 69.0}, {"name": "長打本能", "score": 67.5}, {"name": "レコードホルダー", "score": 67.0}, {"name": "コールドショット", "score": 85.05}, {"name": "粘り強さ", "score": 61.9}, {"name": "隠れた脅威", "score": 60.3}, {"name": "ハードヒッター", "score": 50.25}, {"name": "デセプションハンター", "score": 50.0}, {"name": "積極スイング", "score": 49.25}, {"name": "セカンドチャンス", "score": 48.9}, {"name": "スロースターター", "score": 40.8}, {"name": "バックトゥバック", "score": 39.2}, {"name": "リーグの支配者", "score": 38.0}, {"name": "ゲームチェンジャー", "score": 37.61}, {"name": "5ツールショート", "score": 48.0}, {"name": "リズムメーカー", "score": 47.5}, {"name": "打点生成器", "score": 46.75}, {"name": "ピュアヒッター", "score": 46.75}, {"name": "先制攻撃", "score": 45.5}, {"name": "アウトフィールドガーディアン", "score": 43.0}, {"name": "洞察", "score": 41.0}, {"name": "バッティングの天才", "score": 40.25}, {"name": "勇気", "score": 39.0}, {"name": "黄金の精神", "score": 30.0}, {"name": "リーグの主導者", "score": 25.0}, {"name": "チャンスの火花", "score": 20.45}, {"name": "挑戦本能", "score": 20.1}, {"name": "打点ハンター", "score": 19.0}, {"name": "集中状態", "score": 92.0}, {"name": "WORLD BASEBALL CLASSICエース", "score": 86.0}, {"name": "World Baseball Classicスターター", "score": 67.25}, {"name": "出塁の専門家", "score": 60.3}, {"name": "WORLD BASEBALL CLASSICプレイヤー", "score": 51.75}, {"name": "WORLD BASEBALL CLASSICアウトフィールダー", "score": 47.0}, {"name": "解決者", "score": 46.0}, {"name": "トーナメント精神", "score": 45.75}, {"name": "ボーントゥヒット", "score": 99.0}, {"name": "オフェンシブリーダー", "score": 96.75}, {"name": "BIG BATS", "score": 70.0}, {"name": "プレーオフヒーロー", "score": 66.75}, {"name": "スタンドアウト", "score": 65.75}, {"name": "ローンスター", "score": 56.0}, {"name": "オールアラウンド", "score": 53.75}, {"name": "ヒットマシン", "score": 52.5}, {"name": "FREE AGENT", "score": 52.38}, {"name": "アップ・ザ・ミドル", "score": 52.0}, {"name": "コアプレイヤー", "score": 51.25}, {"name": "突風の主人公", "score": 47.75}, {"name": "2025パフォーマートリオ", "score": 47.0}, {"name": "パワーヒッター", "score": 46.2}, {"name": "ホットスタート", "score": 45.75}, {"name": "コマンダー", "score": 41.25}, {"name": "リーダーシップ", "score": 40.5}, {"name": "キープレイヤー", "score": 34.5}, {"name": "スラッガー", "score": 30.8}, {"name": "フランチャイズ", "score": 30.48}, {"name": "シーズンドプレイヤー", "score": 26.45}, {"name": "FLASHBACK", "score": 23.32}, {"name": "結束力", "score": 43.5}, {"name": "全方位圧迫", "score": 41.75}, {"name": "覇気", "score": 40.25}, {"name": "オーバーペース", "score": 38.75}, {"name": "ヒーロー", "score": 34.5}, {"name": "チャレンジ精神", "score": 33.5}, {"name": "バッティングマシン", "score": 33.0}, {"name": "ビルドアップ", "score": 32.75}, {"name": "ロードウォーリアー", "score": 32.55}, {"name": "主導権掌握", "score": 31.75}, {"name": "チャレンジャー", "score": 30.75}, {"name": "5ツールプレイヤー", "score": 30.0}, {"name": "中心打線", "score": 30.0}, {"name": "集中力", "score": 29.75}, {"name": "順位争い", "score": 29.25}, {"name": "アグレシッブヒッター", "score": 28.5}, {"name": "下位打線", "score": 28.5}, {"name": "ホームアドバンテージ", "score": 27.83}, {"name": "コンタクトヒッター", "score": 25.25}, {"name": "クリーンアップトリオ", "score": 25.0}, {"name": "ツーストライクヒッター", "score": 24.06}, {"name": "好打瞬足", "score": 23.75}, {"name": "カムバックヒッター", "score": 23.48}, {"name": "ベストプレイヤー", "score": 23.0}, {"name": "勝負師", "score": 20.78}, {"name": "狙い打ち", "score": 20.0}, {"name": "コンタクトスペシャリスト", "score": 19.5}, {"name": "勝利の歓声", "score": 19.33}, {"name": "守備スペシャリスト", "score": 18.0}, {"name": "代打スペシャル", "score": 14.95}, {"name": "キャッチャーのリード", "score": 14.5}, {"name": "ハイボールヒッター", "score": 11.0}, {"name": "リードオフ", "score": 11.0}, {"name": "クラッチヒッター", "score": 9.63}, {"name": "後半の集中力", "score": 7.2}, {"name": "アッパースイング", "score": 6.88}, {"name": "俊足", "score": 0.0}, {"name": "リーグの強者", "score": 0.0}, {"name": "右投げ嗜好", "score": 12.5}, {"name": "左投げ嗜好", "score": 12.5}, {"name": "スイートスポット", "score": 11.55}, {"name": "打線維持", "score": 11.5}, {"name": "忍耐心", "score": 11.0}, {"name": "打点マシン", "score": 9.0}, {"name": "勝負強さ", "score": 8.25}, {"name": "テーブルセッター", "score": 7.5}, {"name": "流し打ち", "score": 6.88}, {"name": "引っ張り打ち", "score": 6.88}, {"name": "直球スペシャリスト", "score": 6.0}, {"name": "変化球スペシャリスト", "score": 6.0}, {"name": "初球攻略", "score": 5.75}, {"name": "フルカウント", "score": 2.88}, {"name": "選球眼", "score": 0.0}, {"name": "バント専門", "score": 0.0}];
+const pitSkillMaster=[{"name": "なし", "score": 0.0}, {"name": "チェアマン", "score": 97.5}, {"name": "投手ケミストリー", "score": 91.5}, {"name": "エーススペシャリスト", "score": 90.25}, {"name": "ビッグユニット", "score": 80.8}, {"name": "ビッグユニット(右投)", "score": 40.55}, {"name": "信頼の先発", "score": 70.5}, {"name": "フロントラインエース", "score": 67.0}, {"name": "レコードホルダー", "score": 64.75}, {"name": "疑いの球種", "score": 63.25}, {"name": "ワークホース", "score": 62.0}, {"name": "300勝投手", "score": 56.25}, {"name": "不屈", "score": 55.5}, {"name": "ムース", "score": 49.5}, {"name": "デセプションコマンダー", "score": 48.75}, {"name": "下位打線の支配者", "score": 47.85}, {"name": "自己完結", "score": 45.8}, {"name": "ファイアマン", "score": 45.0}, {"name": "リーグの支配者", "score": 43.5}, {"name": "ラスボス", "score": 35.35}, {"name": "イージーイニング", "score": 33.25}, {"name": "スパークプラグ", "score": 32.4}, {"name": "スロースターター", "score": 31.62}, {"name": "エスケープアーティスト", "score": 23.4}, {"name": "ナックルボールマスター", "score": 45.75}, {"name": "ナックルボールマスター(ナックル未所持)", "score": 38.0}, {"name": "リードの守護者", "score": 17.55}, {"name": "カムバックフラッグ", "score": 44.4}, {"name": "勝利の方程式", "score": 44.4}, {"name": "勇気", "score": 38.0}, {"name": "無失点スタート", "score": 37.25}, {"name": "ベストコンディション", "score": 33.25}, {"name": "マウンドスター", "score": 29.63}, {"name": "リードコントロール", "score": 28.4}, {"name": "黄金の精神", "score": 28.0}, {"name": "レバレッジリリーバー", "score": 27.78}, {"name": "安定投球", "score": 25.75}, {"name": "挑戦本能", "score": 22.85}, {"name": "リーグの主導者", "score": 22.5}, {"name": "冷徹", "score": 19.5}, {"name": "WORLD BASEBALL CLASSICエース", "score": 92.0}, {"name": "集中状態", "score": 76.0}, {"name": "WORLD BASEBALL CLASSICフロントライン", "score": 58.5}, {"name": "解決者", "score": 47.25}, {"name": "ワインドアップ", "score": 44.25}, {"name": "トーナメント精神", "score": 43.5}, {"name": "ドライブライン", "score": 43.5}, {"name": "WORLD BASEBALL CLASSICプレイヤー", "score": 42.75}, {"name": "2025パフォーマートリオ", "score": 113.25}, {"name": "マエストロ", "score": 108.25}, {"name": "パワーピッチャー", "score": 100.0}, {"name": "レリーフアンカー", "score": 96.0}, {"name": "ラストライン", "score": 92.25}, {"name": "スタンドアウト", "score": 72.0}, {"name": "プレーオフヒーロー", "score": 62.75}, {"name": "ブルペンエース", "score": 54.38}, {"name": "コアプレイヤー", "score": 51.25}, {"name": "FREE AGENT", "score": 50.13}, {"name": "ロックダウン", "score": 50.0}, {"name": "ローンスター", "score": 47.5}, {"name": "スイングマン", "score": 46.9}, {"name": "突風の主人公", "score": 44.75}, {"name": "ホットスタート", "score": 40.2}, {"name": "フロントライン", "score": 39.38}, {"name": "プライマリーセットアップマン", "score": 38.75}, {"name": "エリート", "score": 28.5}, {"name": "キープレイヤー", "score": 28.5}, {"name": "フランチャイズ", "score": 25.1}, {"name": "シーズンドプレイヤー", "score": 21.85}, {"name": "クローザー", "score": 21.0}, {"name": "FLASHBACK", "score": 19.63}, {"name": "打線支援", "score": 123.75}, {"name": "ダブルストッパー", "score": 51.0}, {"name": "ハードトレーニング", "score": 42.75}, {"name": "結束力", "score": 42.0}, {"name": "全方位圧迫", "score": 40.25}, {"name": "唯一無二", "score": 36.25}, {"name": "オーバーペース", "score": 34.75}, {"name": "覇気", "score": 33.25}, {"name": "ビルドアップ", "score": 32.25}, {"name": "ワンツーパンチ", "score": 30.5}, {"name": "主導権掌握", "score": 30.0}, {"name": "チャレンジ精神", "score": 29.5}, {"name": "ロードウォーリアー", "score": 29.5}, {"name": "勝利の歓声", "score": 29.25}, {"name": "ヒーロー", "score": 28.5}, {"name": "守護神", "score": 28.5}, {"name": "順位争い", "score": 28.25}, {"name": "専門家", "score": 28.0}, {"name": "ピンポイントコントロール", "score": 27.25}, {"name": "チャレンジャー", "score": 26.75}, {"name": "集中力", "score": 26.25}, {"name": "クオリティスタート", "score": 24.6}, {"name": "チェイスゾーン", "score": 24.0}, {"name": "ホームアドバンテージ", "score": 23.85}, {"name": "エース", "score": 23.75}, {"name": "ワンポイントリリーフ", "score": 22.3}, {"name": "グッドスタート", "score": 19.15}, {"name": "ベストプレイヤー", "score": 19.0}, {"name": "ホットハンド", "score": 18.25}, {"name": "必勝メンバー", "score": 18.0}, {"name": "勝負師", "score": 17.95}, {"name": "ウィニングショット", "score": 17.06}, {"name": "アーティスト", "score": 16.0}, {"name": "流れ遮断", "score": 14.25}, {"name": "アンタッチブル", "score": 14.0}, {"name": "ライジングスター", "score": 13.5}, {"name": "クラッチピッチャー", "score": 7.0}, {"name": "リーグの強者", "score": 0.0}, {"name": "右打ちスペシャリスト", "score": 15.0}, {"name": "平常心", "score": 14.5}, {"name": "左打ちスペシャリスト", "score": 10.0}, {"name": "危機管理", "score": 9.0}, {"name": "緩急調節", "score": 7.84}, {"name": "ヘッドスタート", "score": 5.75}, {"name": "ラストカウント", "score": 5.5}, {"name": "変化球嗜好", "score": 4.75}, {"name": "速球嗜好", "score": 4.13}, {"name": "フルカウント", "score": 2.38}, {"name": "自信満々", "score": 2.1}, {"name": "イニングイーター", "score": 0.0}, {"name": "事故防止", "score": 0.0}];
+
+let type="bat";
+let skills=["","","",""];
+let queries=["","","",""];
+
+const $=id=>document.getElementById(id);
+const fmt=n=>Number.isInteger(n)?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+const master=()=>type==="bat"?batSkillMaster:pitSkillMaster;
+const score=n=>(master().find(x=>x.name===n)||{score:0}).score;
+
+function render(){
+  $("skills").innerHTML=[0,1,2,3].map(i=>`
+    <div class="skill">
+      <div class="searchwrap">
+        <input class="search" id="search${i}" type="text" autocomplete="off"
+          placeholder="スキル名を入力（例：エース）" value="${escapeHtml(queries[i])}"
+          aria-label="スキル${i+1}を検索">
+        <div class="suggestions" id="suggestions${i}"></div>
+      </div>
+      <div class="score" id="score${i}">${skills[i]?fmt(score(skills[i])):"—"}</div>
+    </div>`).join("");
+  [0,1,2,3].forEach(i=>showSuggestions(i));
+  update();
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// モバイルブラウザでも確実に反応するよう、イベントリスナーで検索を処理
+$("skills").addEventListener("input", event=>{
+  const input=event.target.closest("input.search");
+  if(!input) return;
+  const i=Number(input.id.replace("search",""));
+  // IME変換中のひらがなも、そのまま検索対象にする
+  onSearch(i,input.value);
+});
+$("skills").addEventListener("compositionend", event=>{
+  const input=event.target.closest("input.search");
+  if(!input) return;
+  const i=Number(input.id.replace("search",""));
+  onSearch(i,input.value);
+});
+$("skills").addEventListener("focusin", event=>{
+  const input=event.target.closest("input.search");
+  if(!input) return;
+  const i=Number(input.id.replace("search",""));
+  queries[i]=input.value;
+  showSuggestions(i);
+});
+$("skills").addEventListener("click", event=>{
+  const button=event.target.closest("button.suggestion");
+  if(!button) return;
+  event.preventDefault();
+  chooseSkill(Number(button.dataset.skillIndex),button.dataset.skillName);
+});
+
+function onSearch(i,value){
+  queries[i]=value;
+  // 入力を始めたら、枠に入っていたスキルはいったん解除
+  skills[i]="";
+  $("score"+i).textContent="—";
+  update();
+  showSuggestions(i);
+}
+
+// ひらがな・カタカナを同じ読みとして扱う
+function normalizeSearch(value){
+  return String(value||"").normalize("NFKC").toLocaleLowerCase()
+    .replace(/[\u3041-\u3096]/g, ch =>
+      String.fromCharCode(ch.charCodeAt(0) + 0x60)
+    );
+}
+
+// 漢字を含むスキル名の読み検索用辞書。
+// スキル名・評価値そのものは変更しない。
+const skillReadings = {
+  "集中状態":"しゅうちゅうじょうたい",
+  "集中力":"しゅうちゅうりょく",
+  "後半の集中力":"こうはんのしゅうちゅうりょく",
+  "勝負師":"しょうぶし",
+  "狙い打ち":"ねらいうち",
+  "好打瞬足":"こうだしゅんそく",
+  "強靭な肩":"きょうじんなかた",
+  "長打本能":"ちょうだほんのう",
+  "粘り強さ":"ねばりづよさ",
+  "隠れた脅威":"かくれたきょうい",
+  "積極スイング":"せっきょくすいんぐ",
+  "先制攻撃":"せんせいこうげき",
+  "洞察":"どうさつ",
+  "勇気":"ゆうき",
+  "忍耐心":"にんたいしん",
+  "打点生成器":"だてんせいせいき",
+  "打点マシン":"だてんましん",
+  "勝負強さ":"しょうぶづよさ",
+  "選球眼":"せんきゅうがん",
+  "俊足":"しゅんそく",
+  "右投げ嗜好":"みぎなげしこう",
+  "左投げ嗜好":"ひだりなげしこう",
+  "打線維持":"だせんいじ",
+  "中心打線":"ちゅうしんだせん",
+  "順位争い":"じゅんいあらそい",
+  "下位打線":"かいだせん",
+  "勝利の歓声":"しょうりのかんせい",
+  "守備スペシャリスト":"しゅびすぺしゃりすと",
+  "代打スペシャル":"だいだすぺしゃる",
+  "捕手のリード":"ほしゅのりーど",
+  "キャッチャーのリード":"きゃっちゃーのりーど",
+  "変化球スペシャリスト":"へんかきゅうすぺしゃりすと",
+  "直球スペシャリスト":"ちょっきゅうすぺしゃりすと",
+  "初球攻略":"しょきゅうこうりゃく",
+  "無失点スタート":"むしってんすたーと",
+  "信頼の先発":"しんらいのせんぱつ",
+  "疑いの球種":"うたがいのきゅうしゅ",
+  "不屈":"ふくつ",
+  "下位打線の支配者":"かいだせんのしはいしゃ",
+  "自己完結":"じこかんけつ",
+  "勝利の方程式":"しょうりのほうていしき",
+  "結束力":"けっそくりょく",
+  "全方位圧迫":"ぜんほういあっぱく",
+  "覇気":"はき",
+  "主導権掌握":"しゅどうけんしょうあく",
+  "打線支援":"だせんしえん"
+};
+
+function showSuggestions(i){
+  const box=$("suggestions"+i);
+  if(!box) return;
+  const input=$("search"+i);
+  const rawQ=((input ? input.value : queries[i])||"").trim();
+  const q=normalizeSearch(rawQ);
+  queries[i]=rawQ;
+  const alreadyUsed=skills.filter((x,j)=>j!==i && x);
+  let candidates=master().filter(s=>{
+    const name=normalizeSearch(s.name);
+    const reading=normalizeSearch(skillReadings[s.name]||"");
+    return !alreadyUsed.includes(s.name) &&
+      (!q || name.startsWith(q) || (reading && reading.startsWith(q)));
+  });
+  // 入力前は候補を出さず、入力後は冒頭一致の候補だけを表示
+  if(!q){
+    box.innerHTML="";
+    box.classList.remove("show");
+    return;
+  }
+  // 候補数を制限せず、該当するスキルをすべて表示（リスト内はスクロール可能）
+  if(candidates.length){
+    box.innerHTML=candidates.map(s=>
+      `<button type="button" class="suggestion" data-skill-index="${i}" data-skill-name="${escapeHtml(s.name)}">${escapeHtml(s.name)} <span style="float:right;color:#6b7280">${fmt(s.score)}</span></button>`
+    ).join("");
+  }else{
+    box.innerHTML='<div class="noresult">一致するスキルがありません</div>';
+  }
+  box.classList.add("show");
+}
+
+function escapeJs(s){
+  return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\r/g,"\\r").replace(/\n/g,"\\n");
+}
+
+function chooseSkill(i,name){
+  if(name && skills.some((x,j)=>j!==i && x===name)){
+    alert("同じスキルは2回選べません。");
+    return;
+  }
+  skills[i]=name;
+  queries[i]=name;
+  render();
+}
+
+function setSkill(i,name){
+  chooseSkill(i,name);
+}
+function update(){
+  const total=skills.reduce((sum,name)=>sum+score(name),0);
+  $("total").textContent=fmt(total);
+  $("sticky").textContent=fmt(total);
+}
+
+function resetSkills(){
+  skills=["","","",""];
+  queries=["","","",""];
+  render();
+}
+
+$("bat").onclick=()=>{
+  type="bat";
+  skills=["","","",""];
+  queries=["","","",""];
+  $("bat").className="on";
+  $("pit").className="";
+  render();
+};
+
+$("pit").onclick=()=>{
+  type="pit";
+  skills=["","","",""];
+  queries=["","","",""];
+  $("pit").className="on";
+  $("bat").className="";
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
