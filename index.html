@@ -242,6 +242,8 @@ function chooseSkill(i,name){
   skills[i]=name;
   queries[i]=name;
   render();
+  // 選択確定後は候補一覧を閉じ、次の入力欄を操作できるようにする
+  document.querySelectorAll(".suggestions").forEach(box=>box.classList.remove("show"));
 }
 
 function setSkill(i,name){
